@@ -15,10 +15,14 @@ du consumer.
 - **Fix** : passer à `reconsumeLater(...)` avec `enableRetry(true)`. Le
   compteur `RECONSUMETIMES` est persisté comme propriété du message dans
   BookKeeper et survit à n'importe quel événement de cycle de vie.
-- **Le bug existe aussi en Pulsar 3.3.9** (dernière 3.x stable). Le scénario
-  V3 le vérifie contre un second conteneur standalone : mêmes symptômes,
-  même reset du tracker au unload. L'upstream n'a pas corrigé le mécanisme —
-  le correctif côté application reste nécessaire après un upgrade broker.
+- **Le bug existe aussi en Pulsar 3.3.9** (dernière 3.x stable), côté broker
+  **et** côté client. Le scénario V3 le vérifie contre un second conteneur
+  standalone avec `pulsar-client 2.11.0` (défaut) puis avec `pulsar-client
+  3.3.9` (profile Maven `client-v3`). Dans les trois combinaisons testées
+  (client 2.11/broker 2.11, client 2.11/broker 3.3, client 3.3/broker 3.3),
+  le reset au unload est identique et la DLQ reste vide. L'upstream n'a
+  corrigé le mécanisme ni côté broker ni côté client — le correctif
+  applicatif reste nécessaire après n'importe quel upgrade.
 - **Preuves mesurées** : quatre scénarios principaux (A/B/C/D) contre un
   broker Pulsar 2.11.0 + un scénario V3 contre Pulsar 3.3.9 en standalone.
 
@@ -28,9 +32,10 @@ du consumer.
 |---|---|---|
 | Broker **V2** | `apachepulsar/pulsar:2.11.0` | Cible principale. C'est la version qui tourne en prod et où le bug a été observé pour la première fois. Container `bug-pulsar`, ports 6650/8080. Scénarios A, B, C, D. |
 | Broker **V3** | `apachepulsar/pulsar:3.3.9` | Dernière 3.x stable publiée (patch release de la branche 3.3, mars 2026). Container `bug-pulsar-v3`, ports 6651/8081, profile Docker Compose `v3`. Scénario V3 uniquement. |
-| Pulsar **client** | `org.apache.pulsar:pulsar-client:2.11.0` | Identique pour les deux brokers. On veut isoler la question "est-ce que le *broker* 3.x traite différemment l'état du tracker ?" — pas "est-ce que le client 3.x fait quelque chose de différent ?". Les wire protocols 2.11 et 3.x sont compatibles. |
+| Pulsar **client** (défaut) | `org.apache.pulsar:pulsar-client:2.11.0` | Utilisé pour tous les scénarios A/B/C/D et la run par défaut du scénario V3. Les wire protocols 2.11 et 3.x sont compatibles, donc un client 2.11 parle sans problème à un broker 3.3.9 — ce qui permet d'isoler la question "est-ce que le *broker* 3.x traite différemment l'état du tracker ?" indépendamment du client. |
+| Pulsar **client** (profile `client-v3`) | `org.apache.pulsar:pulsar-client:3.3.9` | Activé par `mvn -Pclient-v3 test -Dtest=ScenarioV3UnloadTest`. Remplace le client 2.11.0 dans le pom pour répondre à la question de suivi "et si on upgrade *aussi* le client ?". Détails dans [scenario-v3.md § Et avec le client Pulsar 3](./scenario-v3.md#et-avec-le-client-pulsar-3). |
 | Java | 17+ (testé sur Java 21 Temurin) | Requis par Pulsar 2.11 côté client **et** par Pulsar 3.3 côté broker (le broker 3.x refuse de démarrer sous Java 11). |
-| Logback | 1.2.12 | Pulsar 2.11 force `slf4j-api 1.7.x`, donc logback doit rester sur la branche 1.2.x. Les deux brokers tournent avec cette contrainte côté client. |
+| Logback | `1.2.12` (défaut) ou `1.5.6` (profile `client-v3`) | Pulsar 2.11 force `slf4j-api 1.7.x` → logback 1.2.x. Pulsar client 3.x pull slf4j 2.x → logback 1.5.x. La variable `logback.version` bascule automatiquement via le profile. |
 
 Pulsar 4.x (actuellement 4.2.0 — mars 2026) n'est pas couvert. Cf. la
 section *Limites* de [scenario-v3.md](./scenario-v3.md) pour comment
@@ -85,12 +90,13 @@ mvn test -Dtest=ScenarioATest
 
 # Pour aussi vérifier que Pulsar 3.3.9 a le même bug :
 docker-compose --profile v3 up -d pulsar-v3
-mvn test -Dtest=ScenarioV3UnloadTest
+mvn test -Dtest=ScenarioV3UnloadTest                     # client 2.11 × broker 3.3.9
+mvn -Pclient-v3 test -Dtest=ScenarioV3UnloadTest         # client 3.3.9 × broker 3.3.9
 ```
 
 Budget temps : ~9 min total pour les quatre scénarios A-D, dont 2×13 s de
 restart broker pour A et B, et ~4 s d'unload pour D. Le scénario V3 ajoute
-~40 s supplémentaires contre le broker 3.3.9.
+~40 s par run contre le broker 3.3.9 (client 2.11 ou 3.3).
 
 ## Comment 400 000 messages peuvent s'accumuler avec un seul déploiement hebdomadaire
 

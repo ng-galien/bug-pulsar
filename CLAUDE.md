@@ -10,6 +10,7 @@ Quatre scénarios A/B/C/D sur Pulsar 2.11.0 + un scénario V3 sur Pulsar 3.3.9, 
 - `docker inspect -f '{{.State.Health.Status}}' bug-pulsar` — check healthcheck
 - `mvn test -Dtest=ScenarioATest` — un scénario ciblé (A, B, C, D ou ScenarioV3UnloadTest)
 - `mvn test` — les cinq si les deux brokers sont up. Le V3 est skippé via `@EnabledIf` si `bug-pulsar-v3` n'est pas démarré (pas d'erreur).
+- `mvn -Pclient-v3 test -Dtest=ScenarioV3UnloadTest` — rejoue V3 avec `pulsar-client 3.3.9` au lieu de 2.11.0. Le profile swap aussi logback 1.2.12 → 1.5.6 (slf4j 2.x requis par le client 3.x). Conclusion mesurée : le bug persiste aussi avec le client 3.x.
 - Admin HTTP V2 : `http://localhost:8080` / V3 : `http://localhost:8081`
 - Broker V2 : `pulsar://localhost:6650` / V3 : `pulsar://localhost:6651`
 

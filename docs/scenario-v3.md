@@ -116,6 +116,63 @@ profondément ancrée dans l'architecture du dispatcher) mais qu'il est
 important d'avoir mesuré plutôt que supposé, surtout si une équipe envisage
 un upgrade comme mitigation.
 
+## Et avec le client Pulsar 3 ?
+
+Question de suivi naturelle : *« d'accord le broker 3.x a le même bug, mais
+peut-être que le client 3.x expose une API qui corrige le comportement ou
+qui persiste le compteur côté consommateur ? »*
+
+Pour répondre, on rejoue **exactement le même test** avec `pulsar-client 3.3.9`
+au lieu de 2.11.0. Un profile Maven `client-v3` bascule la version de dépendance :
+
+```bash
+docker-compose --profile v3 up -d pulsar-v3
+mvn -Pclient-v3 test -Dtest=ScenarioV3UnloadTest
+```
+
+Le profile change deux choses :
+
+- `pulsar.version` → `3.3.9` (même release line que le broker)
+- `logback.version` → `1.5.6` (pulsar-client 3.x pull slf4j 2.x, donc logback
+  doit être sur la branche 1.5.x — la contrainte "slf4j-api 1.7 → logback
+  1.2.12" documentée pour 2.11 est **spécifique à la 2.11**)
+
+### Résultat mesuré (run du 2026-04-15, client 3.3.9 × broker 3.3.9)
+
+```
+=== [V3] Avant unload : maxRedeliveryCountSeen=3 messagesReceived=40
+=== [V3] pulsar-admin topics unload ...
+=== [V3] topic unloaded
+Received ... redeliveryCount=0   ← REPARTI DE ZÉRO
+Received ... redeliveryCount=1
+Received ... redeliveryCount=2
+=== [V3] Après unload : lastRedeliveryCountSeen=2 messagesReceivedSinceUnload=40
+=== [V3] Après 20s supplémentaires : dlqMsgInCounter=0
+```
+
+**Strictement identique au run client 2.11**. Le couple client 3.3.9 × broker
+3.3.9 :
+
+- voit le même max pré-unload (`rc=3`)
+- voit les mêmes 40 nouvelles livraisons post-unload (10 × rc=0, 10 × rc=1,
+  10 × rc=2, 10 × rc=3 en cours)
+- laisse la DLQ vide
+
+Donc **ni le broker 3.x ni le client 3.x** ne corrigent le problème. L'API
+`negativeAcknowledge` a la même sémantique dans les deux versions, et le
+`NegativeAcksTracker` côté client reste une structure en mémoire sans
+persistance. Un upgrade complet (broker + client) vers la dernière 3.x est
+toujours dépendant du correctif applicatif `reconsumeLater + enableRetry(true)`.
+
+### Matrice client × broker
+
+| Client | Broker | Résultat |
+|---|---|---|
+| 2.11.0 | 2.11.0 | ❌ bug présent (Scénario A/D) |
+| 2.11.0 | 3.3.9 | ❌ bug présent (ce scénario, profile par défaut) |
+| 3.3.9 | 3.3.9 | ❌ bug présent (ce scénario, profile `client-v3`) |
+| 3.3.9 | 2.11.0 | non testé — peu probable que ça change quelque chose, et combinaison peu réaliste en pratique |
+
 ## Comment le lancer
 
 ```bash
@@ -138,11 +195,12 @@ Durée : ~40 s (similar à D sur 2.11). Logs complets dans `target/test.log`.
   démontrer directement l'accumulation infinie. Le scénario C reste la
   référence pour ça, et sa conclusion (croissance linéaire du backlog) se
   transposerait à l'identique en V3.
-- Le client reste en 2.11.0. Si jamais Pulsar client 3.x ajoutait un
-  mécanisme *côté client* pour restaurer le compteur (par ex. en re-pushant
-  localement un nack-with-count), ce test ne le capterait pas. En pratique,
-  l'API `negativeAcknowledge` n'offre pas ce genre de surface — mais c'est
-  une limite honnête de la méthodologie.
+- Le scénario couvre trois points de la matrice client × broker (cf.
+  tableau ci-dessus). La combinaison client 3.3.9 × broker 2.11.0 n'est
+  pas testée : combinaison improbable en pratique (on n'upgrade jamais
+  uniquement le client vers une version supérieure à celle du broker) et
+  peu susceptible de révéler une régression, vu que les deux autres points
+  du couple 3.x donnent le même résultat.
 
 ## Fichiers clefs
 

@@ -12,9 +12,28 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <pulsar.version>2.11.0</pulsar.version>
+        <!-- Logback 1.2.x targets slf4j 1.7.x (what pulsar-client 2.11 pulls in).
+             The client-v3 profile bumps this to 1.5.x because pulsar-client 3.3 pulls slf4j 2.x. -->
+        <logback.version>1.2.12</logback.version>
         <junit.version>5.10.0</junit.version>
         <jackson.version>2.15.2</jackson.version>
     </properties>
+
+    <profiles>
+        <!--
+            Swap the whole test suite onto pulsar-client 3.3.9 (the same release line
+            as the bug-pulsar-v3 broker) to answer "does upgrading the client fix the
+            bug ?". Run with: mvn test -Pclient-v3 -Dtest=ScenarioV3UnloadTest
+            Requires bug-pulsar-v3 to be up (docker-compose profile v3).
+        -->
+        <profile>
+            <id>client-v3</id>
+            <properties>
+                <pulsar.version>3.3.9</pulsar.version>
+                <logback.version>1.5.6</logback.version>
+            </properties>
+        </profile>
+    </profiles>
 
     <dependencies>
         <dependency>
@@ -46,7 +65,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.2.12</version>
+            <version>${logback.version}</version>
         </dependency>
 
         <dependency>
