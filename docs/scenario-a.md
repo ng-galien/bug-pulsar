@@ -114,7 +114,7 @@ Les logs complets du dernier run sont dans `target/test.log`.
 | Fichier | Rôle |
 |---|---|
 | [`src/main/java/com/test/pulsar/consumer/NackConsumer.java`](../src/main/java/com/test/pulsar/consumer/NackConsumer.java) | Consumer nack-only, tracke `maxRedeliveryCountSeen` |
-| [`src/main/java/com/test/pulsar/producer/TestProducer.java`](../src/main/java/com/test/pulsar/producer/TestProducer.java) | Publish de messages poison |
-| [`src/main/java/com/test/pulsar/util/PulsarMetrics.java`](../src/main/java/com/test/pulsar/util/PulsarMetrics.java) | Lecture backlog / `msgInCounter` via admin HTTP + `waitForBrokerReady` |
-| [`src/test/java/com/test/pulsar/ScenarioATest.java`](../src/test/java/com/test/pulsar/ScenarioATest.java) | Test JUnit 5, restart broker via `ProcessBuilder` |
-| [`docker-compose.yml`](../docker-compose.yml) | Pulsar 2.11.0 standalone |
+| [`src/main/java/com/test/pulsar/config/TopicNames.java`](../src/main/java/com/test/pulsar/config/TopicNames.java) | Record qui centralise main/subscription/retry/dlq |
+| [`src/main/java/com/test/pulsar/util/PulsarMetrics.java`](../src/main/java/com/test/pulsar/util/PulsarMetrics.java) | Lecture backlog / `msgInCounter` / `isBrokerReady` via admin HTTP |
+| [`src/test/java/com/test/pulsar/AbstractPulsarScenarioTest.java`](../src/test/java/com/test/pulsar/AbstractPulsarScenarioTest.java) | Base class : `setUp`/`tearDown`, `dockerComposeRestart`, `waitForBrokerReady` (Awaitility) |
+| [`src/test/java/com/test/pulsar/ScenarioATest.java`](../src/test/java/com/test/pulsar/ScenarioATest.java) | Test JUnit 5, restart broker entre close et re-subscribe |

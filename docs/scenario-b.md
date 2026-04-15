@@ -132,5 +132,7 @@ Logs complets dans `target/test.log`.
 
 | Fichier | Rôle |
 |---|---|
-| [`src/main/java/com/test/pulsar/consumer/ReconsumeLaterConsumer.java`](../src/main/java/com/test/pulsar/consumer/ReconsumeLaterConsumer.java) | Consumer `enableRetry(true)` + reconsumeLater, tracke `maxReconsumeTimesSeen` |
-| [`src/test/java/com/test/pulsar/ScenarioBTest.java`](../src/test/java/com/test/pulsar/ScenarioBTest.java) | Test JUnit 5 avec restart broker |
+| [`src/main/java/com/test/pulsar/consumer/ReconsumeLaterConsumer.java`](../src/main/java/com/test/pulsar/consumer/ReconsumeLaterConsumer.java) | Consumer `enableRetry(true)` + reconsumeLater, tracke `maxReconsumeTimesSeen`. Constantes `MAX_REDELIVER_COUNT` / `RECONSUME_DELAY_SECONDS` publiques pour coupler les durées d'attente du test. |
+| [`src/main/java/com/test/pulsar/config/TopicNames.java`](../src/main/java/com/test/pulsar/config/TopicNames.java) | Record qui centralise main/subscription/retry/dlq |
+| [`src/test/java/com/test/pulsar/AbstractPulsarScenarioTest.java`](../src/test/java/com/test/pulsar/AbstractPulsarScenarioTest.java) | Base class partagée avec A et C |
+| [`src/test/java/com/test/pulsar/ScenarioBTest.java`](../src/test/java/com/test/pulsar/ScenarioBTest.java) | Test JUnit 5 avec restart broker ; `POST_RESTART_DRAIN_WINDOW` calculé à partir des constantes du consumer |

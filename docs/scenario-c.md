@@ -161,7 +161,8 @@ avec `grep "ScenarioCTest"`.
 
 | Fichier | Rôle |
 |---|---|
-| [`src/test/java/com/test/pulsar/ScenarioCTest.java`](../src/test/java/com/test/pulsar/ScenarioCTest.java) | Les deux tests + boucle publisher/sampler |
-| [`src/main/java/com/test/pulsar/consumer/NackConsumer.java`](../src/main/java/com/test/pulsar/consumer/NackConsumer.java) | Constructeur avec `Predicate<Message<String>>` |
+| [`src/test/java/com/test/pulsar/ScenarioCTest.java`](../src/test/java/com/test/pulsar/ScenarioCTest.java) | Les deux `@Test` + `runAndSample` (thread publisher + sampler + shutdown propre) |
+| [`src/main/java/com/test/pulsar/consumer/NackConsumer.java`](../src/main/java/com/test/pulsar/consumer/NackConsumer.java) | Constructeur paramétré par `Predicate<Message<String>>` pour mixer good/poison |
 | [`src/main/java/com/test/pulsar/consumer/ReconsumeLaterConsumer.java`](../src/main/java/com/test/pulsar/consumer/ReconsumeLaterConsumer.java) | Idem |
-| [`src/main/java/com/test/pulsar/producer/TestProducer.java`](../src/main/java/com/test/pulsar/producer/TestProducer.java) | Méthode `send(String)` pour le streaming |
+| [`src/main/java/com/test/pulsar/producer/TestProducer.java`](../src/main/java/com/test/pulsar/producer/TestProducer.java) | `send(String)` pour le streaming continu |
+| [`src/test/java/com/test/pulsar/AbstractPulsarScenarioTest.java`](../src/test/java/com/test/pulsar/AbstractPulsarScenarioTest.java) | Base class partagée avec A et B |
