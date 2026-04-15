@@ -25,6 +25,7 @@ public class NackConsumer implements AutoCloseable {
 
     private final Consumer<String> consumer;
     private final AtomicInteger maxRedeliveryCountSeen = new AtomicInteger(0);
+    private final AtomicInteger lastRedeliveryCountSeen = new AtomicInteger(-1);
     private final AtomicInteger messagesReceivedCount = new AtomicInteger(0);
     private final AtomicInteger messagesAckedCount = new AtomicInteger(0);
     private final AtomicInteger messagesNackedCount = new AtomicInteger(0);
@@ -59,6 +60,7 @@ public class NackConsumer implements AutoCloseable {
                 int rc = msg.getRedeliveryCount();
                 messagesReceivedCount.incrementAndGet();
                 maxRedeliveryCountSeen.updateAndGet(prev -> Math.max(prev, rc));
+                lastRedeliveryCountSeen.set(rc);
                 LOG.info("Received id={} redeliveryCount={} payload={}",
                     msg.getMessageId(), rc, new String(msg.getData()));
                 if (shouldAck.test(msg)) {
@@ -87,6 +89,11 @@ public class NackConsumer implements AutoCloseable {
 
     public int getMaxRedeliveryCountSeen() {
         return maxRedeliveryCountSeen.get();
+    }
+
+    /** -1 si aucun message reçu. Utile pour observer un reset de tracker. */
+    public int getLastRedeliveryCountSeen() {
+        return lastRedeliveryCountSeen.get();
     }
 
     public int getMessagesReceivedCount() {

@@ -18,8 +18,10 @@ import org.junit.jupiter.api.Test;
  */
 class ScenarioATest extends AbstractPulsarScenarioTest {
 
-    // ~3 cycles du backoff multiplicatif (1s + 2s + 4s = 7s)
-    private static final Duration INITIAL_NACK_CYCLES = Duration.ofSeconds(7);
+    // Backoff multiplicatif : deliveries successives à t=0, 1, 3, 7, 15.
+    // 9 s garantit d'avoir observé au moins la delivery t=7 (rc=3) même sous
+    // démarrage client lent / Rosetta, sans allonger inutilement le test.
+    private static final Duration INITIAL_NACK_CYCLES = Duration.ofSeconds(9);
     private static final Duration POST_RESTART_OBSERVATION = Duration.ofSeconds(3);
     private static final Duration DLQ_STAY_EMPTY_WINDOW = Duration.ofSeconds(30);
     private static final Duration BROKER_RESTART_TIMEOUT = Duration.ofSeconds(90);

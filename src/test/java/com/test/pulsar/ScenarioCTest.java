@@ -38,7 +38,7 @@ class ScenarioCTest extends AbstractPulsarScenarioTest {
     }
 
     @Test
-    void backlogGrowsUnboundedWithNack() throws Exception {
+    void backlogGrowsLinearlyWithNackOver90s() throws Exception {
         try (NackConsumer consumer = new NackConsumer(client, names, ScenarioCTest::isGoodMessage)) {
             List<Long> samples = runAndSample(TEST_DURATION, SAMPLE_INTERVAL);
 

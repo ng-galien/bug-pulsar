@@ -8,26 +8,34 @@ du consumer.
 ## TL;DR
 
 - **Bug** : `negativeAcknowledge` *sans* `enableRetry(true)` stocke le
-  compteur de redelivery uniquement en RAM (client + broker). Un restart
-  simultané le perd, la DLQ n'est jamais atteinte, le backlog gonfle.
+  compteur de redelivery uniquement en RAM (client + broker). **Tout événement
+  qui ferme le dispatcher de la subscription** — restart broker, restart
+  consumer, bundle rebalancing, unload d'un topic — détruit l'état. La DLQ
+  n'est jamais atteinte et le backlog gonfle.
 - **Fix** : passer à `reconsumeLater(...)` avec `enableRetry(true)`. Le
   compteur `RECONSUMETIMES` est persisté comme propriété du message dans
-  BookKeeper et survit à n'importe quel restart.
-- **Preuves mesurées** : trois scénarios de test isolent chaque aspect du
+  BookKeeper et survit à n'importe quel événement de cycle de vie.
+- **Preuves mesurées** : quatre scénarios de test isolent chaque aspect du
   bug contre un broker Pulsar 2.11.0 en standalone.
 
 ## Tableau récapitulatif
 
-| | Scénario A — nack | Scénario B — reconsumeLater | Scénario C — accumulation |
-|---|---|---|---|
-| **Stratégie testée** | `negativeAcknowledge` sans `enableRetry` | `reconsumeLater` + `enableRetry(true)` | comparaison nack vs reconsumeLater sous flux continu |
-| **Durée du test** | ~60 s | ~30 s | ~3 min 30 (2 × 90 s) |
-| **Restart broker** | ✅ via `docker-compose restart` | ✅ via `docker-compose restart` | ❌ régime nominal |
-| **Compteur survit au restart** | ❌ remis à 0 | ✅ `RECONSUMETIMES` intact | n/a |
-| **DLQ atteinte** | ❌ jamais (0 messages) | ✅ 16 messages (5 publiés, duplication at-least-once) | n/a |
-| **Backlog après 90 s** | n/a | n/a | nack **452** vs reconsumeLater **0** |
-| **Assertion clef** | `dlqMsgInCounter == 0` après restart | `dlqMsgInCounter >= 5` après restart | nack croît linéairement, reconsumeLater reste plat |
-| **Documentation** | [scenario-a.md](./scenario-a.md) | [scenario-b.md](./scenario-b.md) | [scenario-c.md](./scenario-c.md) |
+| | Scénario A — nack + restart | Scénario B — reconsumeLater + restart | Scénario C — accumulation | Scénario D — unload sans restart |
+|---|---|---|---|---|
+| **Stratégie testée** | `negativeAcknowledge` sans `enableRetry` | `reconsumeLater` + `enableRetry(true)` | nack vs reconsumeLater sous flux continu | `negativeAcknowledge` sans `enableRetry` |
+| **Durée du test** | ~60 s | ~30 s | ~3 min 30 (2 × 90 s) | ~40 s |
+| **Événement appliqué** | `docker-compose restart pulsar` | `docker-compose restart pulsar` | aucun (régime nominal) | `pulsar-admin topics unload` (broker up) |
+| **Compteur survit à l'événement** | ❌ remis à 0 | ✅ `RECONSUMETIMES` intact | n/a | ❌ remis à 0 |
+| **DLQ atteinte** | ❌ jamais (0 messages) | ✅ 16 messages (5 publiés, duplication at-least-once) | n/a | ❌ jamais (0 messages) |
+| **Backlog après 90 s** | n/a | n/a | nack **452** vs reconsumeLater **0** | n/a |
+| **Assertion clef** | `countAfterRestart < countBeforeRestart` & `dlqMsgInCounter == 0` | `dlqMsgInCounter >= 5` après restart | nack croît linéairement, reconsumeLater reste plat | `lastRedeliveryCountSeen < maxBeforeUnload` & `dlqMsgInCounter == 0` |
+| **Documentation** | [scenario-a.md](./scenario-a.md) | [scenario-b.md](./scenario-b.md) | [scenario-c.md](./scenario-c.md) | [scenario-d.md](./scenario-d.md) |
+
+**Le rôle du scénario D** : prouver que le bug ne dépend pas d'un restart
+broker. Un simple topic unload (équivalent d'un bundle rebalancing en prod)
+suffit à perdre le tracker et empêche la DLQ d'être atteinte. C'est le
+mécanisme qui produit les 400k en régime nominal, pas les déploiements
+hebdomadaires. Voir [scenario-d.md](./scenario-d.md) pour la démonstration.
 
 ## Où est stocké le compteur de tentatives
 
@@ -44,13 +52,13 @@ immunisé.
 
 ```bash
 docker-compose up -d          # Pulsar 2.11.0 standalone (amd64 sous Rosetta sur Apple Silicon)
-mvn test                      # lance A + B + C
+mvn test                      # lance A + B + C + D
 # ou bien ciblé :
 mvn test -Dtest=ScenarioATest
 ```
 
-Budget temps : ~8 min total pour les trois scénarios, dont 2×13 s de restart
-broker pour A et B.
+Budget temps : ~9 min total pour les quatre scénarios, dont 2×13 s de restart
+broker pour A et B, et ~4 s d'unload pour D.
 
 ## Comment 400 000 messages peuvent s'accumuler avec un seul déploiement hebdomadaire
 
@@ -162,22 +170,24 @@ bug-pulsar/
 │   ├── README.md                   # ← vous êtes ici
 │   ├── scenario-a.md
 │   ├── scenario-b.md
-│   └── scenario-c.md
+│   ├── scenario-c.md
+│   └── scenario-d.md
 └── src/
     ├── main/java/com/test/pulsar/
     │   ├── config/PulsarConfig.java
     │   ├── config/TopicNames.java          # source unique du naming main/retry/dlq
-    │   ├── consumer/NackConsumer.java
+    │   ├── consumer/NackConsumer.java      # expose getLastRedeliveryCountSeen() pour D
     │   ├── consumer/ReconsumeLaterConsumer.java
     │   ├── producer/TestProducer.java
     │   └── util/PulsarMetrics.java         # stats via admin HTTP + isBrokerReady
     ├── main/resources/
     │   └── logback.xml                     # console + FileAppender vers target/test.log
     └── test/java/com/test/pulsar/
-        ├── AbstractPulsarScenarioTest.java # setUp/tearDown + dockerComposeRestart + waitForBrokerReady
+        ├── AbstractPulsarScenarioTest.java # setUp/tearDown + dockerComposeRestart + dockerExec + waitForBrokerReady
         ├── ScenarioATest.java
         ├── ScenarioBTest.java
-        └── ScenarioCTest.java
+        ├── ScenarioCTest.java
+        └── ScenarioDTest.java
 ```
 
 ## Environnement

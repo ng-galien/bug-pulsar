@@ -108,6 +108,10 @@ Les logs complets du dernier run sont dans `target/test.log`.
   qu'après un restart on repart de 0 ; il ne démontre pas directement que
   l'accumulation est infinie sur N restarts successifs. C'est l'objet du
   **Scénario C**.
+- Le framing "restart simultané" est **sur-contraint** : un restart broker
+  seul, voire un simple `topics unload`, suffit à perdre le tracker. C'est
+  l'objet du **Scénario D**, qui démontre la cause minimale du bug sans
+  toucher au conteneur Pulsar.
 
 ## Fichiers clefs
 

@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -66,6 +67,34 @@ abstract class AbstractPulsarScenarioTest {
         }
         if (p.exitValue() != 0) {
             throw new IllegalStateException("docker-compose restart " + service + " exited " + p.exitValue());
+        }
+    }
+
+    /**
+     * Run a command inside the Pulsar container via {@code docker exec}. Drains
+     * stdout/stderr the same way {@link #dockerComposeRestart(String)} does so
+     * surefire's reporter channel stays clean. Throws if the command exits non-zero.
+     */
+    protected static void dockerExec(String... cmd) throws IOException, InterruptedException {
+        List<String> full = new ArrayList<>();
+        full.add("docker");
+        full.add("exec");
+        full.add("bug-pulsar");
+        for (String c : cmd) full.add(c);
+        ProcessBuilder pb = new ProcessBuilder(full).redirectErrorStream(true);
+        Process p = pb.start();
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                LOG.info("[docker exec] {}", line);
+            }
+        }
+        if (!p.waitFor(60, TimeUnit.SECONDS)) {
+            p.destroyForcibly();
+            throw new IllegalStateException("docker exec " + String.join(" ", full) + " timed out");
+        }
+        if (p.exitValue() != 0) {
+            throw new IllegalStateException("docker exec " + String.join(" ", full) + " exited " + p.exitValue());
         }
     }
 
