@@ -1,5 +1,10 @@
 # Scénario B — `reconsumeLater` avec `enableRetry(true)` + restart simultané
 
+**Broker testé** : `apachepulsar/pulsar:2.11.0` (container `bug-pulsar`).
+**Client** : `pulsar-client 2.11.0`. Le correctif fonctionne à l'identique
+sur 3.3.9 — l'API `reconsumeLater` et la propriété `RECONSUMETIMES` n'ont
+pas bougé entre 2.11 et 3.3.
+
 ## Comportement démontré
 
 Quand un consumer utilise `reconsumeLater(...)` avec `enableRetry(true)`,

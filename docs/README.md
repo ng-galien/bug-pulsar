@@ -22,18 +22,33 @@ du consumer.
 - **Preuves mesurées** : quatre scénarios principaux (A/B/C/D) contre un
   broker Pulsar 2.11.0 + un scénario V3 contre Pulsar 3.3.9 en standalone.
 
+## Versions testées
+
+| Composant | Version | Rôle |
+|---|---|---|
+| Broker **V2** | `apachepulsar/pulsar:2.11.0` | Cible principale. C'est la version qui tourne en prod et où le bug a été observé pour la première fois. Container `bug-pulsar`, ports 6650/8080. Scénarios A, B, C, D. |
+| Broker **V3** | `apachepulsar/pulsar:3.3.9` | Dernière 3.x stable publiée (patch release de la branche 3.3, mars 2026). Container `bug-pulsar-v3`, ports 6651/8081, profile Docker Compose `v3`. Scénario V3 uniquement. |
+| Pulsar **client** | `org.apache.pulsar:pulsar-client:2.11.0` | Identique pour les deux brokers. On veut isoler la question "est-ce que le *broker* 3.x traite différemment l'état du tracker ?" — pas "est-ce que le client 3.x fait quelque chose de différent ?". Les wire protocols 2.11 et 3.x sont compatibles. |
+| Java | 17+ (testé sur Java 21 Temurin) | Requis par Pulsar 2.11 côté client **et** par Pulsar 3.3 côté broker (le broker 3.x refuse de démarrer sous Java 11). |
+| Logback | 1.2.12 | Pulsar 2.11 force `slf4j-api 1.7.x`, donc logback doit rester sur la branche 1.2.x. Les deux brokers tournent avec cette contrainte côté client. |
+
+Pulsar 4.x (actuellement 4.2.0 — mars 2026) n'est pas couvert. Cf. la
+section *Limites* de [scenario-v3.md](./scenario-v3.md) pour comment
+l'ajouter si besoin.
+
 ## Tableau récapitulatif
 
-| | Scénario A — nack + restart | Scénario B — reconsumeLater + restart | Scénario C — accumulation | Scénario D — unload sans restart |
-|---|---|---|---|---|
-| **Stratégie testée** | `negativeAcknowledge` sans `enableRetry` | `reconsumeLater` + `enableRetry(true)` | nack vs reconsumeLater sous flux continu | `negativeAcknowledge` sans `enableRetry` |
-| **Durée du test** | ~60 s | ~30 s | ~3 min 30 (2 × 90 s) | ~40 s |
-| **Événement appliqué** | `docker-compose restart pulsar` | `docker-compose restart pulsar` | aucun (régime nominal) | `pulsar-admin topics unload` (broker up) |
-| **Compteur survit à l'événement** | ❌ remis à 0 | ✅ `RECONSUMETIMES` intact | n/a | ❌ remis à 0 |
-| **DLQ atteinte** | ❌ jamais (0 messages) | ✅ 16 messages (5 publiés, duplication at-least-once) | n/a | ❌ jamais (0 messages) |
-| **Backlog après 90 s** | n/a | n/a | nack **452** vs reconsumeLater **0** | n/a |
-| **Assertion clef** | `countAfterRestart < countBeforeRestart` & `dlqMsgInCounter == 0` | `dlqMsgInCounter >= 5` après restart | nack croît linéairement, reconsumeLater reste plat | `lastRedeliveryCountSeen < maxBeforeUnload` & `dlqMsgInCounter == 0` |
-| **Documentation** | [scenario-a.md](./scenario-a.md) | [scenario-b.md](./scenario-b.md) | [scenario-c.md](./scenario-c.md) | [scenario-d.md](./scenario-d.md) |
+| | Scénario A — nack + restart | Scénario B — reconsumeLater + restart | Scénario C — accumulation | Scénario D — unload sans restart | Scénario V3 — unload sur Pulsar 3 |
+|---|---|---|---|---|---|
+| **Broker** | Pulsar **2.11.0** | Pulsar **2.11.0** | Pulsar **2.11.0** | Pulsar **2.11.0** | Pulsar **3.3.9** |
+| **Stratégie testée** | `negativeAcknowledge` sans `enableRetry` | `reconsumeLater` + `enableRetry(true)` | nack vs reconsumeLater sous flux continu | `negativeAcknowledge` sans `enableRetry` | `negativeAcknowledge` sans `enableRetry` |
+| **Durée du test** | ~60 s | ~30 s | ~3 min 30 (2 × 90 s) | ~40 s | ~40 s |
+| **Événement appliqué** | `docker-compose restart pulsar` | `docker-compose restart pulsar` | aucun (régime nominal) | `pulsar-admin topics unload` (broker up) | `pulsar-admin topics unload` (broker up) |
+| **Compteur survit à l'événement** | ❌ remis à 0 | ✅ `RECONSUMETIMES` intact | n/a | ❌ remis à 0 | ❌ remis à 0 (identique à V2) |
+| **DLQ atteinte** | ❌ jamais (0 messages) | ✅ 16 messages (5 publiés, duplication at-least-once) | n/a | ❌ jamais (0 messages) | ❌ jamais (0 messages) |
+| **Backlog après 90 s** | n/a | n/a | nack **452** vs reconsumeLater **0** | n/a | n/a |
+| **Assertion clef** | `countAfterRestart < countBeforeRestart` & `dlqMsgInCounter == 0` | `dlqMsgInCounter >= 5` après restart | nack croît linéairement, reconsumeLater reste plat | `lastRedeliveryCountSeen < maxBeforeUnload` & `dlqMsgInCounter == 0` | `lastRedeliveryCountSeen < maxBeforeUnload` & `dlqMsgInCounter == 0` |
+| **Documentation** | [scenario-a.md](./scenario-a.md) | [scenario-b.md](./scenario-b.md) | [scenario-c.md](./scenario-c.md) | [scenario-d.md](./scenario-d.md) | [scenario-v3.md](./scenario-v3.md) |
 
 **Le rôle du scénario D** : prouver que le bug ne dépend pas d'un restart
 broker. Un simple topic unload (équivalent d'un bundle rebalancing en prod)
@@ -215,6 +230,6 @@ bug-pulsar/
 - Java 17+ (testé sur Java 21 Temurin)
 - Maven 3.9+
 - Docker + docker-compose
-- Pulsar 2.11.0 (image officielle `apachepulsar/pulsar:2.11.0`)
+- Pulsar 2.11.0 obligatoire, Pulsar 3.3.9 optionnel — cf. [Versions testées](#versions-testées) ci-dessus pour le détail des images et de leur rôle
 - Pas de dépendance native macOS (fallback DNS système, cf.
   [scenario-c.md](./scenario-c.md#pièges-rencontrés-pendant-lécriture-du-test))

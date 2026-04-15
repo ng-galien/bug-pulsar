@@ -1,5 +1,9 @@
 # Scénario A — `negativeAcknowledge` sans `enableRetry` + restart simultané
 
+**Broker testé** : `apachepulsar/pulsar:2.11.0` (container `bug-pulsar`).
+**Client** : `pulsar-client 2.11.0`. Le même bug est reproduit sur Pulsar
+3.3.9 — cf. [scenario-v3.md](./scenario-v3.md).
+
 ## Bug reproduit
 
 Quand un consumer Pulsar utilise `negativeAcknowledge` **sans** `enableRetry(true)`,

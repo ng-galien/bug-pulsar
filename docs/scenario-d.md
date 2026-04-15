@@ -1,5 +1,10 @@
 # Scénario D — perte du tracker sans restart broker (topic unload)
 
+**Broker testé** : `apachepulsar/pulsar:2.11.0` (container `bug-pulsar`).
+**Client** : `pulsar-client 2.11.0`. Ce scénario est dupliqué à l'identique
+sur Pulsar 3.3.9 dans [scenario-v3.md](./scenario-v3.md) — les deux
+versions perdent le tracker de la même manière.
+
 ## Pourquoi ce scénario existe
 
 Les scénarios A et B sur-contraignent la reproduction : ils ferment client +

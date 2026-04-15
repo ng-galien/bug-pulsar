@@ -1,5 +1,11 @@
 # Scénario C — accumulation continue du backlog
 
+**Broker testé** : `apachepulsar/pulsar:2.11.0` (container `bug-pulsar`).
+**Client** : `pulsar-client 2.11.0`. Pas rejoué sur 3.3.9 — la dynamique
+"nack sans enableRetry → backlog linéaire" ne dépend d'aucune feature
+3.x ; le scénario V3 vérifie le mécanisme sous-jacent (reset du tracker)
+qui suffit à extrapoler.
+
 ## Comportement démontré
 
 Sous un flux continu de messages avec un taux d'échec fixe (50 %), le backlog
