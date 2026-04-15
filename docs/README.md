@@ -15,8 +15,12 @@ du consumer.
 - **Fix** : passer à `reconsumeLater(...)` avec `enableRetry(true)`. Le
   compteur `RECONSUMETIMES` est persisté comme propriété du message dans
   BookKeeper et survit à n'importe quel événement de cycle de vie.
-- **Preuves mesurées** : quatre scénarios de test isolent chaque aspect du
-  bug contre un broker Pulsar 2.11.0 en standalone.
+- **Le bug existe aussi en Pulsar 3.3.9** (dernière 3.x stable). Le scénario
+  V3 le vérifie contre un second conteneur standalone : mêmes symptômes,
+  même reset du tracker au unload. L'upstream n'a pas corrigé le mécanisme —
+  le correctif côté application reste nécessaire après un upgrade broker.
+- **Preuves mesurées** : quatre scénarios principaux (A/B/C/D) contre un
+  broker Pulsar 2.11.0 + un scénario V3 contre Pulsar 3.3.9 en standalone.
 
 ## Tableau récapitulatif
 
@@ -37,6 +41,14 @@ suffit à perdre le tracker et empêche la DLQ d'être atteinte. C'est le
 mécanisme qui produit les 400k en régime nominal, pas les déploiements
 hebdomadaires. Voir [scenario-d.md](./scenario-d.md) pour la démonstration.
 
+**Le rôle du scénario V3** : rejouer D contre **Pulsar 3.3.9** (dernière 3.x)
+pour savoir si un upgrade broker résout le problème. Résultat : **non**, le
+mécanisme est identique, le tracker se perd exactement pareil. `maxRedeliveryCountSeen=3`
+avant unload → `lastRedeliveryCountSeen=2` et nouvelles livraisons repartent
+de `rc=0` après. La DLQ reste vide. Conclusion : upgrader le broker sans
+changer le code applicatif n'efface pas le bug. Voir
+[scenario-v3.md](./scenario-v3.md).
+
 ## Où est stocké le compteur de tentatives
 
 | Mécanisme | Stockage | Durée de vie |
@@ -52,13 +64,18 @@ immunisé.
 
 ```bash
 docker-compose up -d          # Pulsar 2.11.0 standalone (amd64 sous Rosetta sur Apple Silicon)
-mvn test                      # lance A + B + C + D
+mvn test                      # lance A + B + C + D (V3 est skip si pulsar-v3 pas démarré)
 # ou bien ciblé :
 mvn test -Dtest=ScenarioATest
+
+# Pour aussi vérifier que Pulsar 3.3.9 a le même bug :
+docker-compose --profile v3 up -d pulsar-v3
+mvn test -Dtest=ScenarioV3UnloadTest
 ```
 
-Budget temps : ~9 min total pour les quatre scénarios, dont 2×13 s de restart
-broker pour A et B, et ~4 s d'unload pour D.
+Budget temps : ~9 min total pour les quatre scénarios A-D, dont 2×13 s de
+restart broker pour A et B, et ~4 s d'unload pour D. Le scénario V3 ajoute
+~40 s supplémentaires contre le broker 3.3.9.
 
 ## Comment 400 000 messages peuvent s'accumuler avec un seul déploiement hebdomadaire
 
@@ -171,23 +188,26 @@ bug-pulsar/
 │   ├── scenario-a.md
 │   ├── scenario-b.md
 │   ├── scenario-c.md
-│   └── scenario-d.md
+│   ├── scenario-d.md
+│   └── scenario-v3.md
 └── src/
     ├── main/java/com/test/pulsar/
-    │   ├── config/PulsarConfig.java
+    │   ├── config/PulsarConfig.java        # shim back-compat vers PulsarEndpoint.V2
+    │   ├── config/PulsarEndpoint.java      # record (container, serviceUrl, adminUrl) — constantes V2 / V3
     │   ├── config/TopicNames.java          # source unique du naming main/retry/dlq
-    │   ├── consumer/NackConsumer.java      # expose getLastRedeliveryCountSeen() pour D
+    │   ├── consumer/NackConsumer.java      # expose getLastRedeliveryCountSeen() pour D / V3
     │   ├── consumer/ReconsumeLaterConsumer.java
     │   ├── producer/TestProducer.java
-    │   └── util/PulsarMetrics.java         # stats via admin HTTP + isBrokerReady
+    │   └── util/PulsarMetrics.java         # stats via admin HTTP, overloads prenant un adminUrl
     ├── main/resources/
     │   └── logback.xml                     # console + FileAppender vers target/test.log
     └── test/java/com/test/pulsar/
-        ├── AbstractPulsarScenarioTest.java # setUp/tearDown + dockerComposeRestart + dockerExec + waitForBrokerReady
+        ├── AbstractPulsarScenarioTest.java # hook endpoint() + helpers dockerExecInBroker / getMsgInCounter / waitForBrokerReady
         ├── ScenarioATest.java
         ├── ScenarioBTest.java
         ├── ScenarioCTest.java
-        └── ScenarioDTest.java
+        ├── ScenarioDTest.java
+        └── ScenarioV3UnloadTest.java       # override endpoint() → V3, @EnabledIf skip si bug-pulsar-v3 down
 ```
 
 ## Environnement

@@ -1,6 +1,6 @@
 package com.test.pulsar;
 
-import com.test.pulsar.config.PulsarConfig;
+import com.test.pulsar.config.PulsarEndpoint;
 import com.test.pulsar.config.TopicNames;
 import com.test.pulsar.producer.TestProducer;
 import com.test.pulsar.util.PulsarMetrics;
@@ -28,10 +28,18 @@ abstract class AbstractPulsarScenarioTest {
 
     protected abstract String topicPrefix();
 
+    /**
+     * Override to target a different broker (e.g. V3). Defaults to the 2.11.0
+     * container used by scenarios A through D.
+     */
+    protected PulsarEndpoint endpoint() {
+        return PulsarEndpoint.V2;
+    }
+
     @BeforeEach
     final void baseSetUp() throws Exception {
         names = TopicNames.forTest(topicPrefix());
-        client = PulsarConfig.newClient();
+        client = endpoint().newClient();
         producer = new TestProducer(client, names.main());
     }
 
@@ -71,15 +79,15 @@ abstract class AbstractPulsarScenarioTest {
     }
 
     /**
-     * Run a command inside the Pulsar container via {@code docker exec}. Drains
+     * Run a command inside a Pulsar container via {@code docker exec}. Drains
      * stdout/stderr the same way {@link #dockerComposeRestart(String)} does so
      * surefire's reporter channel stays clean. Throws if the command exits non-zero.
      */
-    protected static void dockerExec(String... cmd) throws IOException, InterruptedException {
+    protected static void dockerExec(String container, String... cmd) throws IOException, InterruptedException {
         List<String> full = new ArrayList<>();
         full.add("docker");
         full.add("exec");
-        full.add("bug-pulsar");
+        full.add(container);
         for (String c : cmd) full.add(c);
         ProcessBuilder pb = new ProcessBuilder(full).redirectErrorStream(true);
         Process p = pb.start();
@@ -98,10 +106,26 @@ abstract class AbstractPulsarScenarioTest {
         }
     }
 
-    protected static void waitForBrokerReady(Duration timeout) {
+    /** Convenience: run a command against the current test's broker container. */
+    protected void dockerExecInBroker(String... cmd) throws IOException, InterruptedException {
+        dockerExec(endpoint().container(), cmd);
+    }
+
+    /** Backlog of a subscription on the current broker. */
+    protected long getBacklog(String topic, String subscription) throws Exception {
+        return PulsarMetrics.getBacklog(endpoint().adminUrl(), topic, subscription);
+    }
+
+    /** Cumulative msgInCounter for a topic on the current broker. */
+    protected long getMsgInCounter(String topic) throws Exception {
+        return PulsarMetrics.getMsgInCounter(endpoint().adminUrl(), topic);
+    }
+
+    protected void waitForBrokerReady(Duration timeout) {
+        String adminUrl = endpoint().adminUrl();
         Awaitility.await()
             .atMost(timeout)
             .pollInterval(Duration.ofSeconds(1))
-            .until(PulsarMetrics::isBrokerReady);
+            .until(() -> PulsarMetrics.isBrokerReady(adminUrl));
     }
 }

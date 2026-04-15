@@ -64,7 +64,7 @@ class ScenarioDTest extends AbstractPulsarScenarioTest {
         // up, le consumer se réattache transparent. C'est ce qui se passe en
         // prod quand un bundle est rééquilibré ou unloaded par inactivité.
         LOG.info("=== pulsar-admin topics unload {}", names.main());
-        dockerExec("bin/pulsar-admin", "topics", "unload", names.main());
+        dockerExecInBroker("bin/pulsar-admin", "topics", "unload", names.main());
         LOG.info("=== topic unloaded");
 
         Thread.sleep(POST_UNLOAD_OBSERVATION.toMillis());
