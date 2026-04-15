@@ -25,6 +25,11 @@ du consumer.
   applicatif reste nécessaire après n'importe quel upgrade.
 - **Preuves mesurées** : quatre scénarios principaux (A/B/C/D) contre un
   broker Pulsar 2.11.0 + un scénario V3 contre Pulsar 3.3.9 en standalone.
+- **Issue upstream** : le piège n'est pas documenté côté Apache Pulsar.
+  Une issue *docs-only* a été filée à partir de ce repro :
+  [apache/pulsar#25533](https://github.com/apache/pulsar/issues/25533).
+  Le draft complet et les notes pour le suivi sont dans
+  [`docs/upstream-issue-draft.md`](./upstream-issue-draft.md).
 
 ## Versions testées
 

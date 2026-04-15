@@ -1,26 +1,29 @@
 # Upstream Apache Pulsar issue draft
 
-Draft of a docs-only issue to file against `apache/pulsar`. Filed on
-2026-04-15 after a duplicate check (closest related: #23944, which covers
-a different angle of the same broader theme).
+**Filed**: 2026-04-15 → [apache/pulsar#25533](https://github.com/apache/pulsar/issues/25533)
 
-To file from this directory:
+Filed via `gh issue create` after a duplicate check (closest related:
+[#23944](https://github.com/apache/pulsar/issues/23944), which covers a
+different angle of the same broader theme — consumer crash vs. dispatcher
+close — and proposes a behavior change rather than a docs update).
 
-```bash
-gh issue create --repo apache/pulsar \
-  --title "Docs: warn that DeadLetterPolicy.maxRedeliverCount is silently unreliable with negativeAcknowledge under bundle unload / dispatcher close" \
-  --label type/docs \
-  --body-file docs/upstream-issue-draft.md
-```
+The label `type/docs` doesn't exist in `apache/pulsar`; the only docs label
+(`doc`) is reserved for PRs. The issue was filed unlabeled — maintainers
+will triage.
 
-(`gh` will include this file's heading in the body — strip the lines above
-the `---` separator before filing, or use `--body` with a heredoc instead.)
+**Follow-up to do**:
 
-After filing, also leave a short comment on
-[#23944](https://github.com/apache/pulsar/issues/23944) noting that this
-issue is the docs counterpart to their behavior-change discussion, and
-that the bundle-unload trigger is complementary to the consumer-crash
-trigger they describe.
+- Watch [#25533](https://github.com/apache/pulsar/issues/25533) for the
+  first 24-48h: that's when triage decides whether it goes into active
+  review or backlog.
+- Leave a short comment on
+  [#23944](https://github.com/apache/pulsar/issues/23944) cross-referencing
+  #25533 as the docs counterpart with the bundle-unload trigger.
+- If a maintainer asks for a PR, the wording in the *What I'm asking for*
+  section below is ~80 % usable as-is for a callout; just adapt to the
+  Pulsar docs format (Markdown under `site2/docs/`).
+
+The full body that was sent is preserved below.
 
 ---
 
