@@ -17,6 +17,9 @@ public record PulsarEndpoint(String container, String serviceUrl, String adminUr
     public static final PulsarEndpoint V3 =
         new PulsarEndpoint("bug-pulsar-v3", "pulsar://localhost:6651", "http://localhost:8081");
 
+    public static final PulsarEndpoint V4 =
+        new PulsarEndpoint("bug-pulsar-v4", "pulsar://localhost:6652", "http://localhost:8082");
+
     public PulsarClient newClient() throws PulsarClientException {
         return PulsarClient.builder()
             .serviceUrl(serviceUrl)

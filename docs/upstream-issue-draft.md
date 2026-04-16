@@ -49,10 +49,12 @@ Self-contained, runnable: https://github.com/ng-galien/bug-pulsar
 | D | 2.11.0 | 2.11.0 | `pulsar-admin topics unload` (broker stays up) | ❌ 0 msgs |
 | V3 | 2.11.0 | 3.3.9 | `pulsar-admin topics unload` | ❌ 0 msgs |
 | V3 (`-Pclient-v3`) | 3.3.9 | 3.3.9 | `pulsar-admin topics unload` | ❌ 0 msgs |
+| V4 | 2.11.0 | 4.2.0 | `pulsar-admin topics unload` | ❌ 0 msgs |
+| V4 (`-Pclient-v4`) | 4.2.0 | 4.2.0 | `pulsar-admin topics unload` | ❌ 0 msgs |
 
 After the unload, the same `MessageId`s come back with `redeliveryCount=0` because the `InMemoryRedeliveryTracker` attached to the dispatcher is destroyed and recreated empty. Scenario B in the same repo validates the counterpart: `reconsumeLater(...)` + `enableRetry(true)` is unaffected by either a broker restart or a topic unload, because the counter lives on the retry topic as a persisted message property.
 
-The bug reproduces identically on the latest 3.3.x line, with both the 2.11 and 3.3 clients.
+The bug reproduces identically on the latest 3.3.x and 4.2.x lines, with 2.11, 3.3 and 4.2 clients.
 
 ## What I'm asking for
 
@@ -72,6 +74,6 @@ Happy to submit a docs PR with proposed wording if a maintainer agrees this is w
 
 ## Versions covered by the repro
 
-- Broker: `apachepulsar/pulsar:2.11.0` and `apachepulsar/pulsar:3.3.9` (both reproduce)
-- Client: `pulsar-client:2.11.0` and `pulsar-client:3.3.9` (both reproduce)
+- Broker: `apachepulsar/pulsar:2.11.0`, `apachepulsar/pulsar:3.3.9` and `apachepulsar/pulsar:4.2.0` (all reproduce)
+- Client: `pulsar-client:2.11.0`, `pulsar-client:3.3.9` and `pulsar-client:4.2.0` (all reproduce)
 - Java: 21 (Temurin), macOS + Docker

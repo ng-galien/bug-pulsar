@@ -33,6 +33,18 @@
                 <logback.version>1.5.6</logback.version>
             </properties>
         </profile>
+        <!--
+            Same idea with pulsar-client 4.2.0 (matching the bug-pulsar-v4 broker).
+            Run with: mvn test -Pclient-v4 -Dtest=ScenarioV4UnloadTest
+            Requires bug-pulsar-v4 to be up (docker-compose profile v4).
+        -->
+        <profile>
+            <id>client-v4</id>
+            <properties>
+                <pulsar.version>4.2.0</pulsar.version>
+                <logback.version>1.5.6</logback.version>
+            </properties>
+        </profile>
     </profiles>
 
     <dependencies>
