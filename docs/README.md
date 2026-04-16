@@ -181,8 +181,8 @@ est plus long que le temps moyen entre invalidations du tracker.
 - `pulsar_subscription_msg_rate_redeliver` sur la subscription incriminée :
   s'il est non-nul et stable, les poison tournent en boucle.
 - `pulsar_subscription_back_log` : croissance linéaire = accumulation active.
-- `pulsar_topic_load_balancer_bundles_split_count` et les événements
-  `bundleUnloading` : chaque événement est un reset potentiel du tracker.
+- `pulsar_lb_unload_bundle_total` (compteur de bundles unloadés par le load
+  balancer) : chaque incrément est un reset potentiel du tracker.
 - Backlog du DLQ topic : si = 0 alors que le backlog principal est à 400k,
   la DLQ n'est jamais atteinte → on est exactement dans le Scénario A.
 
